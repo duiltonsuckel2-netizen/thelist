@@ -255,19 +255,11 @@ export function PlaceModal({ open, onClose, onSubmit, onDelete, editing }: Props
             />
           </Field>
 
-          <Field label="URLs de fotos (uma por linha — só http/https)">
-            <textarea
+          <Field label="Fotos do lugar">
+            <PhotosField
               value={form.photoUrls}
-              onChange={(e) => update('photoUrls', e.target.value)}
-              rows={4}
-              placeholder={'https://...\nhttps://...'}
-              className={`${inputClass} resize-none font-mono text-xs`}
+              onChange={(v) => update('photoUrls', v)}
             />
-            <p className="mt-2 text-[10px] text-sand-500 leading-relaxed">
-              Cola links diretos de imagem (botão direito → "Copiar endereço da
-              imagem"). Funciona com Unsplash, Imgur, Google Drive público e
-              qualquer CDN aberto.
-            </p>
           </Field>
 
           <div className="pt-2 flex items-center justify-between gap-3">
@@ -315,6 +307,94 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       </span>
       {children}
     </label>
+  )
+}
+
+/**
+ * PhotosField — UI dedicada pra editar a galeria de fotos.
+ * Mostra cada foto atual como linha removível + textarea pra colar URLs novas
+ * que entram NO INÍCIO da galeria (pra aparecerem primeiro no carrossel).
+ *
+ * O `value` é o estado serializado (uma URL por linha).
+ */
+function PhotosField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const lines = value.split('\n').map((s) => s.trim()).filter(Boolean)
+
+  const removeAt = (idx: number) => {
+    const next = lines.filter((_, i) => i !== idx)
+    onChange(next.join('\n'))
+  }
+
+  const clearAll = () => onChange('')
+
+  return (
+    <div className="space-y-3">
+      <div className="rounded-sm border border-dashed border-ink-700 bg-ink-850/50 p-3">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-[9px] tracking-widest2 uppercase text-sand-500">
+            {lines.length} foto{lines.length === 1 ? '' : 's'} na galeria
+          </span>
+          {lines.length > 0 && (
+            <button
+              type="button"
+              onClick={clearAll}
+              className="text-[9px] tracking-widest2 uppercase text-red-400/80 hover:text-red-300 transition"
+            >
+              Limpar tudo
+            </button>
+          )}
+        </div>
+        {lines.length === 0 ? (
+          <p className="text-[11px] text-sand-500 italic py-2">Nenhuma foto.</p>
+        ) : (
+          <ul className="space-y-1.5">
+            {lines.map((url, i) => (
+              <li key={`${url}-${i}`} className="flex items-center gap-2">
+                <span className="text-[9px] text-sand-500 w-5 shrink-0">{i + 1}.</span>
+                <span className="flex-1 text-[11px] text-sand-300 font-mono truncate">
+                  {url}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => removeAt(i)}
+                  aria-label={`Remover foto ${i + 1}`}
+                  className="shrink-0 h-5 w-5 rounded-full text-red-400/70 hover:text-red-300 hover:bg-red-500/10 text-xs transition"
+                >
+                  ×
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        rows={4}
+        placeholder={'https://exemplo.com/foto1.jpg\nhttps://exemplo.com/foto2.jpg'}
+        className={`${inputClass} resize-none font-mono text-xs`}
+      />
+
+      <div className="text-[10px] text-sand-500 leading-relaxed space-y-1">
+        <p>
+          <span className="text-sand-300">Cada linha é uma foto.</span> Edita
+          ou apaga as linhas pra mudar a galeria — o que tá no campo acima é
+          exatamente o que vai aparecer no card.
+        </p>
+        <p>
+          <span className="text-gold-400">✓</span> Funciona: links que terminam
+          em <code className="text-sand-300">.jpg .png .webp .heic</code>, fotos
+          do Unsplash, Imgur, Google Drive público.
+        </p>
+        <p>
+          <span className="text-red-400">✗</span> NÃO funciona: link de post do
+          Instagram (<code className="text-sand-400">instagram.com/p/...</code>),
+          link de página do Google, URL do TripAdvisor. Tem que ser link DIRETO
+          da imagem (botão direito → "Copiar endereço da imagem").
+        </p>
+      </div>
+    </div>
   )
 }
 

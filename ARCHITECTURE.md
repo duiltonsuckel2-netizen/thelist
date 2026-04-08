@@ -9,10 +9,12 @@
 
 ```bash
 npm install
-npm run dev      # http://localhost:5173
-npm run build    # build de produção em /dist
-npm run preview  # serve o build local
-npm run typecheck
+npm run dev        # http://localhost:5173
+npm run build      # build de produção em /dist
+npm run preview    # serve o build local
+npm run typecheck  # tsc strict
+npm test           # vitest run (39 tests)
+npm run test:watch # modo watch
 ```
 
 Sem backend, sem auth, sem banco. Os dados moram no `localStorage` do navegador.
@@ -27,11 +29,13 @@ Sem backend, sem auth, sem banco. Os dados moram no `localStorage` do navegador.
 | **Framework UI** | React 18 | Maturidade, ecossistema e por casar com a estética componentizada do briefing. |
 | **Linguagem** | TypeScript strict | A taxonomia tem 8 categorias × 14 culinárias × tags livres — TS captura typos no dia 1 e documenta o `Place`. |
 | **Estilo** | Tailwind CSS 3 | Design editorial precisa de tokens consistentes (`gold`, `sand`, `ink`) — `tailwind.config.js` vira o design system. |
-| **State / persistência** | `useState` + `useLocalStorage<T>` | Sem backend = sem necessidade de Zustand/Redux. Um hook resolve persistência reativa. |
+| **State / persistência** | `useState` + `useLocalStorage<T>` (com `parse` validator opcional) | Sem backend = sem necessidade de Zustand/Redux. Um hook resolve persistência reativa **e** validação de shape ao hidratar. |
 | **Animações** | CSS keyframes (Tailwind) | Expand/fade/sheet-up cabem em CSS puro. -40 kB vs framer-motion. |
 | **Carrossel** | `useState` + touch events | Swipe + dots não justifica embla/swiper. |
 | **Modal** | Custom (sem libs) | Bottom-sheet específico do briefing, não dá pra reusar headless-ui sem custom CSS pesado. |
 | **Fontes** | Playfair Display + DM Sans (Google) | Briefing pediu nominalmente — preconnect no `<head>` pra evitar FOUT. |
+| **PWA** | Manifest + ícones (sem service worker) | App vira "instalável" no celular via Add to Home Screen. Sem SW ainda — não precisa de offline-first nesse momento. |
+| **Testes** | Vitest (sem RTL) | Pure functions críticas (validators + filter) cobertas. Sem RTL porque component tests no v0.1 são caros e o ROI é baixo pra UI estática. |
 
 ### Anti-patterns evitados
 - Sem React Router (single page).
@@ -49,33 +53,49 @@ Hospedagem estática (Vercel/Netlify/Cloudflare Pages tier free) — **R$ 0/mês
 
 ```
 thelist/
-├── index.html               # entry, link das fontes
+├── index.html                  # entry, manifest, fontes, iOS meta tags
 ├── package.json
-├── tsconfig.json            # strict mode + noUnusedLocals
-├── tsconfig.node.json
+├── tsconfig.json               # strict mode + noUnusedLocals
 ├── vite.config.js
-├── tailwind.config.js       # design system: gold, sand, ink, fontes, animations
+├── vitest.config.ts            # config dos testes
+├── tailwind.config.js          # design system: gold, sand, ink, fontes, animations
 ├── postcss.config.js
-├── ARCHITECTURE.md          # você está aqui
+├── ARCHITECTURE.md             # você está aqui
+├── public/
+│   ├── manifest.webmanifest    # PWA
+│   ├── icon.svg                # fonte vetorial
+│   ├── icon-maskable.svg       # versão maskable (Android adaptive icons)
+│   ├── icon-192.png            # PWA Android
+│   ├── icon-512.png            # PWA Android + splash
+│   ├── icon-maskable-512.png   # purpose=maskable
+│   ├── apple-touch-icon.png    # 180x180 iOS Add to Home Screen
+│   └── favicon.png             # 32x32
+├── scripts/
+│   └── generate-icons.mjs      # gera os PNGs a partir dos SVGs (sharp)
 └── src/
-    ├── main.tsx             # bootstrap React
-    ├── App.tsx              # composição de tela + state global
-    ├── index.css            # @tailwind + estilos base + componentes utilitários
-    ├── types.ts             # Place, CategoryId, CuisineId, PriceRange
+    ├── main.tsx                # bootstrap React
+    ├── App.tsx                 # composição de tela + state global
+    ├── index.css               # @tailwind + estilos base + componentes utilitários
+    ├── types.ts                # Place, CategoryId, CuisineId, PriceRange
+    ├── vite-env.d.ts
     ├── hooks/
-    │   └── useLocalStorage.ts
+    │   └── useLocalStorage.ts  # persistência reativa + validação opcional
     ├── data/
-    │   ├── taxonomy.ts      # CATEGORIES + CUISINES (source of truth dos filtros)
-    │   ├── photoLibrary.ts  # moodboards de fotos placeholder do Unsplash
-    │   └── initialPlaces.ts # 28 lugares iniciais do briefing
+    │   ├── taxonomy.ts         # CATEGORIES + CUISINES (source of truth dos filtros)
+    │   ├── photoLibrary.ts     # moodboards de fotos placeholder do Unsplash
+    │   ├── initialPlaces.ts    # 28 lugares iniciais do briefing
+    │   ├── filter.ts           # filterPlaces(): pure function testável
+    │   ├── filter.test.ts      # 9 testes
+    │   ├── validate.ts         # parsePlace, isSafeUrl, parseInstagramHandle
+    │   └── validate.test.ts    # 30 testes
     └── components/
-        ├── Header.tsx       # título, contadores, barra de progresso
-        ├── Filters.tsx      # chips sticky de categoria + culinária
-        ├── PlaceCard.tsx    # card colapsável com toda a info
-        ├── PhotoCarousel.tsx# carrossel touch + dots
-        ├── SmartImage.tsx   # <img> com fallback automático
-        ├── FAB.tsx          # botão flutuante "+"
-        └── AddPlaceModal.tsx# bottom-sheet de adicionar lugar
+        ├── Header.tsx          # título, contadores, barra de progresso
+        ├── Filters.tsx         # chips sticky de categoria + culinária
+        ├── PlaceCard.tsx       # card colapsável com toda a info
+        ├── PhotoCarousel.tsx   # carrossel touch + dots
+        ├── SmartImage.tsx      # <img> com fallback automático
+        ├── FAB.tsx             # botão flutuante "+"
+        └── AddPlaceModal.tsx   # bottom-sheet de adicionar lugar
 ```
 
 ### Boundaries respeitados
@@ -122,6 +142,9 @@ Se uma URL do Unsplash quebrar, `SmartImage` substitui por outra do banco curado
 - **TypeScript strict**: `strict: true`, `noUnusedLocals`, `noUnusedParameters`, `noFallthroughCasesInSwitch`, `noUncheckedSideEffectImports`.
 - **`npm run typecheck`** roda `tsc -b --pretty`.
 - **`npm run build`** roda typecheck antes de empacotar — não dá pra publicar build com erro de tipo.
+- **Vitest** com 39 testes cobrindo as boundaries críticas (validators de URL/Instagram/Place + lógica de filtro).
+- **Validação de shape no hydrate** do localStorage — dado corrompido (DevTools, migração de versão, bug) cai pro `INITIAL_PLACES` em vez de quebrar a tela.
+- **Logging gated por DEV** — `console.warn` só em `import.meta.env.DEV`. Zero ruído no console do usuário final.
 - **Tailwind config tipada** (JSDoc `@type`).
 - **Sem ESLint** por enquanto: o projeto é pequeno o suficiente pra TS strict + Vite cobrirem. Se virar time, adicionar `eslint-config-airbnb-typescript` + Prettier.
 

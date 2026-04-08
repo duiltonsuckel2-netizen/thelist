@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { CATEGORIES_FOR_FORM, CUISINES_FOR_FORM } from '../data/taxonomy'
+import { isSafeUrl, parseInstagramHandle } from '../data/validate'
 import type { CategoryId, CuisineId, Place, PriceRange } from '../types'
 
 interface Props {
@@ -52,23 +53,27 @@ export function AddPlaceModal({ open, onClose, onSubmit }: Props) {
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault()
-    if (!form.name.trim()) return
+    const name = form.name.trim()
+    if (!name) return
 
+    // Split apenas por quebra de linha — vírgula pode aparecer dentro de query string.
     const photos = form.photoUrls
-      .split(/[\n,]+/)
+      .split('\n')
       .map((s) => s.trim())
-      .filter(Boolean)
+      .filter(isSafeUrl)
+
+    const handle = form.instagram.trim() ? parseInstagramHandle(form.instagram) : null
 
     const place: Place = {
-      id: `${slugify(form.name)}-${Date.now().toString(36)}`,
-      name: form.name.trim(),
+      id: `${slugify(name)}-${Date.now().toString(36)}`,
+      name,
       category: form.category,
       cuisines: form.cuisines,
       vibe: form.vibe.trim(),
       address: form.address.trim() || undefined,
       hours: form.hours.trim() || undefined,
       price: form.price,
-      instagram: form.instagram.trim() || undefined,
+      instagram: handle ? `@${handle}` : undefined,
       description: form.description.trim() || undefined,
       tags: [],
       photos: photos.length > 0 ? photos : defaultPhotoSet(),
@@ -218,12 +223,12 @@ export function AddPlaceModal({ open, onClose, onSubmit }: Props) {
             />
           </Field>
 
-          <Field label="URLs de fotos (uma por linha ou separadas por vírgula)">
+          <Field label="URLs de fotos (uma por linha — só http/https)">
             <textarea
               value={form.photoUrls}
               onChange={(e) => update('photoUrls', e.target.value)}
               rows={3}
-              placeholder="https://..."
+              placeholder={'https://...\nhttps://...'}
               className={`${inputClass} resize-none font-mono text-xs`}
             />
           </Field>

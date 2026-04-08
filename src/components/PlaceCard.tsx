@@ -191,28 +191,22 @@ function VisitedToggle({
 }
 
 function DetailGrid({ place }: { place: Place }) {
-  const items: Array<{ label: string; value: string | undefined }> = [
-    {
-      label: 'Cozinha',
-      value: place.cuisines.length
-        ? place.cuisines.map((c) => CUISINE_BY_ID[c]?.label).filter(Boolean).join(' · ')
-        : '—',
-    },
-    { label: 'Endereço', value: place.address },
-    { label: 'Horário', value: place.hours },
-    { label: 'Fecha', value: place.closed },
-  ].filter((it) => it.value && it.value !== '—' || it.label === 'Cozinha')
+  const cozinha = place.cuisines.length
+    ? place.cuisines.map((c) => CUISINE_BY_ID[c]?.label).filter(Boolean).join(' · ')
+    : '—'
 
-  if (items.length === 0) return null
+  // Cozinha sempre aparece (vira "—" quando vazio); demais só quando preenchidos.
+  const items: Array<{ label: string; value: string }> = [{ label: 'Cozinha', value: cozinha }]
+  if (place.address) items.push({ label: 'Endereço', value: place.address })
+  if (place.hours) items.push({ label: 'Horário', value: place.hours })
+  if (place.closed) items.push({ label: 'Fecha', value: place.closed })
 
   return (
     <dl className="grid grid-cols-2 gap-x-5 gap-y-4">
       {items.map((it) => (
         <div key={it.label}>
           <dt className="text-[9px] tracking-widest2 uppercase text-sand-500">{it.label}</dt>
-          <dd className="mt-1 text-[13px] text-sand-100 leading-snug">
-            {it.value ?? '—'}
-          </dd>
+          <dd className="mt-1 text-[13px] text-sand-100 leading-snug">{it.value}</dd>
         </div>
       ))}
     </dl>

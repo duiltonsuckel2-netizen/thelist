@@ -26,6 +26,8 @@ export function Filters({
             <button
               key={c.id}
               type="button"
+              role="radio"
+              aria-checked={category === c.id}
               onClick={() => onCategoryChange(c.id)}
               className={`chip ${category === c.id ? 'chip-active' : ''}`}
             >
@@ -40,6 +42,8 @@ export function Filters({
             <button
               key={c.id}
               type="button"
+              role="radio"
+              aria-checked={cuisine === c.id}
               onClick={() => onCuisineChange(c.id)}
               className={`chip ${cuisine === c.id ? 'chip-active' : ''}`}
             >
@@ -52,6 +56,7 @@ export function Filters({
         <div className="pt-1 flex items-center justify-end">
           <button
             type="button"
+            aria-pressed={hideVisited}
             onClick={onToggleHideVisited}
             className={`text-[10px] tracking-widest2 uppercase transition-colors ${
               hideVisited ? 'text-gold-400' : 'text-sand-400 hover:text-sand-200'

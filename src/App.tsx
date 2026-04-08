@@ -6,6 +6,8 @@ import { FAB } from './components/FAB'
 import { AddPlaceModal } from './components/AddPlaceModal'
 import { useLocalStorage } from './hooks/useLocalStorage'
 import { INITIAL_PLACES } from './data/initialPlaces'
+import { parsePlacesArray } from './data/validate'
+import { filterPlaces } from './data/filter'
 import type { CategoryFilter, CuisineFilter, Place } from './types'
 
 const STORAGE = {
@@ -14,10 +16,22 @@ const STORAGE = {
   hideVisited: 'meus-lugares.hideVisited.v1',
 }
 
+const parseStringArray = (raw: unknown): string[] | null =>
+  Array.isArray(raw) && raw.every((v): v is string => typeof v === 'string') ? raw : null
+
+const parseBool = (raw: unknown): boolean | null =>
+  typeof raw === 'boolean' ? raw : null
+
 export default function App() {
-  const [places, setPlaces] = useLocalStorage<Place[]>(STORAGE.places, INITIAL_PLACES)
-  const [visitedIds, setVisitedIds] = useLocalStorage<string[]>(STORAGE.visited, [])
-  const [hideVisited, setHideVisited] = useLocalStorage<boolean>(STORAGE.hideVisited, false)
+  const [places, setPlaces] = useLocalStorage<Place[]>(STORAGE.places, INITIAL_PLACES, {
+    parse: parsePlacesArray,
+  })
+  const [visitedIds, setVisitedIds] = useLocalStorage<string[]>(STORAGE.visited, [], {
+    parse: parseStringArray,
+  })
+  const [hideVisited, setHideVisited] = useLocalStorage<boolean>(STORAGE.hideVisited, false, {
+    parse: parseBool,
+  })
 
   const [category, setCategory] = useState<CategoryFilter>('todos')
   const [cuisine, setCuisine] = useState<CuisineFilter>('todas')
@@ -25,14 +39,10 @@ export default function App() {
 
   const visitedSet = useMemo(() => new Set(visitedIds), [visitedIds])
 
-  const filtered = useMemo(() => {
-    return places.filter((p) => {
-      if (category !== 'todos' && p.category !== category) return false
-      if (cuisine !== 'todas' && !p.cuisines.includes(cuisine)) return false
-      if (hideVisited && visitedSet.has(p.id)) return false
-      return true
-    })
-  }, [places, category, cuisine, hideVisited, visitedSet])
+  const filtered = useMemo(
+    () => filterPlaces({ places, category, cuisine, hideVisited, visitedSet }),
+    [places, category, cuisine, hideVisited, visitedSet],
+  )
 
   const toggleVisited = (id: string) =>
     setVisitedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))

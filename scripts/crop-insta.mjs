@@ -19,6 +19,8 @@ const SKIP_BOTTOM = 50        // margem mínima do fundo
 const PHOTO_THRESHOLD = 8     // std mínimo pra ser considerado conteúdo de foto
 const GAP_THRESHOLD = 5       // std abaixo disso = chrome escuro do IG
 const GAP_MIN_RUN = 15        // gap precisa ter pelo menos 15 linhas pra "fechar" a foto
+const TOP_PADDING = 20        // respiro no topo (sem ultrapassar o chrome)
+const BOTTOM_PADDING = 20     // respiro no fundo (sem ultrapassar os dots)
 
 async function rowStds(filepath) {
   const { data, info } = await sharp(filepath).raw().toBuffer({ resolveWithObject: true })
@@ -43,32 +45,36 @@ async function detectPhotoBounds(filepath) {
   const { stds, width, height } = await rowStds(filepath)
 
   // Topo: primeira linha após SKIP_TOP com std > PHOTO_THRESHOLD
-  let top = SKIP_TOP
+  let topRaw = SKIP_TOP
   for (let y = SKIP_TOP; y < height - SKIP_BOTTOM; y++) {
     if (stds[y] > PHOTO_THRESHOLD) {
-      top = y
+      topRaw = y
       break
     }
   }
 
   // Fundo: caminha pra baixo, fecha quando achar um gap escuro contíguo de
-  // GAP_MIN_RUN linhas. Bottom = última linha de conteúdo antes do gap.
-  let bottom = height - SKIP_BOTTOM
-  for (let y = top; y < height - SKIP_BOTTOM - GAP_MIN_RUN; y++) {
+  // GAP_MIN_RUN linhas. bottomRaw = última linha de conteúdo antes do gap.
+  let bottomRaw = height - SKIP_BOTTOM
+  for (let y = topRaw; y < height - SKIP_BOTTOM - GAP_MIN_RUN; y++) {
     if (stds[y] < GAP_THRESHOLD) {
-      // Verifica se é um gap longo
       let runLen = 0
       while (y + runLen < height && stds[y + runLen] < GAP_THRESHOLD) runLen++
       if (runLen >= GAP_MIN_RUN) {
-        bottom = y - 1
+        bottomRaw = y - 1
         break
       }
-      // Gap curto — pula e continua
       y += runLen
     }
   }
 
-  return { top, bottom, width, height }
+  // Aplica padding (respeitando os limites do chrome do IG)
+  const top = Math.max(SKIP_TOP, topRaw - TOP_PADDING)
+  const bottom = Math.min(bottomRaw + BOTTOM_PADDING, bottomRaw + 5 + GAP_MIN_RUN - 5)
+  // bottom não passa do gap detectado (fica antes dos dots indicators)
+  const safeBottom = Math.min(bottom, height - SKIP_BOTTOM)
+
+  return { top, bottom: safeBottom, width, height }
 }
 
 async function processOne(input, output) {

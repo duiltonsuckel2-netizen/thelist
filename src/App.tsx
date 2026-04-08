@@ -10,8 +10,12 @@ import { parsePlacesArray } from './data/validate'
 import { filterPlaces } from './data/filter'
 import type { CategoryFilter, CuisineFilter, Place } from './types'
 
+// Bumped places → v2 quando começamos a hospedar fotos reais em /public/photos/
+// (a v1 cacheava os placeholders do Unsplash). visited e hideVisited continuam
+// em v1 — o que o usuário marcou como visitado é preservado porque os IDs
+// dos lugares são estáveis entre versões.
 const STORAGE = {
-  places: 'meus-lugares.places.v1',
+  places: 'meus-lugares.places.v2',
   visited: 'meus-lugares.visited.v1',
   hideVisited: 'meus-lugares.hideVisited.v1',
 }

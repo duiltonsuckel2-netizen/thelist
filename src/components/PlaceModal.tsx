@@ -7,6 +7,9 @@ interface Props {
   open: boolean
   onClose: () => void
   onSubmit: (place: Place) => void
+  onDelete?: (id: string) => void
+  /** Quando passado, o modal entra em modo edição e pré-preenche o form. */
+  editing?: Place | null
 }
 
 const PRICE_OPTIONS: PriceRange[] = ['$', '$$', '$$$', '$$$$']
@@ -26,8 +29,27 @@ const EMPTY_FORM = {
 
 type FormState = typeof EMPTY_FORM
 
-export function AddPlaceModal({ open, onClose, onSubmit }: Props) {
+const fromPlace = (p: Place): FormState => ({
+  name: p.name,
+  category: p.category,
+  cuisines: p.cuisines,
+  vibe: p.vibe,
+  address: p.address ?? '',
+  hours: p.hours ?? '',
+  price: p.price === 'gratis' ? '$' : p.price,
+  instagram: p.instagram ?? '',
+  description: p.description ?? '',
+  photoUrls: p.photos.join('\n'),
+})
+
+export function PlaceModal({ open, onClose, onSubmit, onDelete, editing }: Props) {
   const [form, setForm] = useState<FormState>(EMPTY_FORM)
+  const isEditing = Boolean(editing)
+
+  useEffect(() => {
+    if (!open) return
+    setForm(editing ? fromPlace(editing) : EMPTY_FORM)
+  }, [open, editing])
 
   useEffect(() => {
     if (!open) return
@@ -65,22 +87,30 @@ export function AddPlaceModal({ open, onClose, onSubmit }: Props) {
     const handle = form.instagram.trim() ? parseInstagramHandle(form.instagram) : null
 
     const place: Place = {
-      id: `${slugify(name)}-${Date.now().toString(36)}`,
+      id: editing?.id ?? `${slugify(name)}-${Date.now().toString(36)}`,
       name,
       category: form.category,
       cuisines: form.cuisines,
       vibe: form.vibe.trim(),
       address: form.address.trim() || undefined,
       hours: form.hours.trim() || undefined,
+      closed: editing?.closed,
       price: form.price,
+      highlight: editing?.highlight,
       instagram: handle ? `@${handle}` : undefined,
       description: form.description.trim() || undefined,
-      tags: [],
-      photos: photos.length > 0 ? photos : defaultPhotoSet(),
+      tags: editing?.tags ?? [],
+      photos: photos.length > 0 ? photos : editing?.photos ?? defaultPhotoSet(),
     }
 
     onSubmit(place)
-    setForm(EMPTY_FORM)
+    onClose()
+  }
+
+  const handleDelete = () => {
+    if (!editing || !onDelete) return
+    if (!window.confirm(`Apagar "${editing.name}" da lista?`)) return
+    onDelete(editing.id)
     onClose()
   }
 
@@ -103,9 +133,11 @@ export function AddPlaceModal({ open, onClose, onSubmit }: Props) {
         <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 bg-ink-950/95 backdrop-blur border-b border-ink-800">
           <div>
             <p className="text-[10px] tracking-widest2 uppercase text-gold-500/80">
-              Adicionar
+              {isEditing ? 'Editar' : 'Adicionar'}
             </p>
-            <h2 className="font-display text-2xl text-sand-50">Novo lugar</h2>
+            <h2 className="font-display text-2xl text-sand-50">
+              {isEditing ? editing?.name : 'Novo lugar'}
+            </h2>
           </div>
           <button
             type="button"
@@ -208,7 +240,7 @@ export function AddPlaceModal({ open, onClose, onSubmit }: Props) {
             <input
               value={form.instagram}
               onChange={(e) => update('instagram', e.target.value)}
-              placeholder="@handle"
+              placeholder="@handle ou link"
               className={inputClass}
             />
           </Field>
@@ -227,26 +259,44 @@ export function AddPlaceModal({ open, onClose, onSubmit }: Props) {
             <textarea
               value={form.photoUrls}
               onChange={(e) => update('photoUrls', e.target.value)}
-              rows={3}
+              rows={4}
               placeholder={'https://...\nhttps://...'}
               className={`${inputClass} resize-none font-mono text-xs`}
             />
+            <p className="mt-2 text-[10px] text-sand-500 leading-relaxed">
+              Cola links diretos de imagem (botão direito → "Copiar endereço da
+              imagem"). Funciona com Unsplash, Imgur, Google Drive público e
+              qualquer CDN aberto.
+            </p>
           </Field>
 
-          <div className="pt-2 flex gap-3 justify-end">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-5 py-2.5 text-xs tracking-widest2 uppercase text-sand-300 hover:text-sand-100 transition"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              className="px-6 py-2.5 text-xs tracking-widest2 uppercase bg-gradient-to-b from-gold-500 to-gold-700 text-ink-950 font-semibold rounded-sm shadow-gold hover:from-gold-400 hover:to-gold-600 transition"
-            >
-              Adicionar
-            </button>
+          <div className="pt-2 flex items-center justify-between gap-3">
+            <div>
+              {isEditing && onDelete && (
+                <button
+                  type="button"
+                  onClick={handleDelete}
+                  className="px-4 py-2.5 text-xs tracking-widest2 uppercase text-red-400/80 hover:text-red-300 transition"
+                >
+                  Apagar
+                </button>
+              )}
+            </div>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-5 py-2.5 text-xs tracking-widest2 uppercase text-sand-300 hover:text-sand-100 transition"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="px-6 py-2.5 text-xs tracking-widest2 uppercase bg-gradient-to-b from-gold-500 to-gold-700 text-ink-950 font-semibold rounded-sm shadow-gold hover:from-gold-400 hover:to-gold-600 transition"
+              >
+                {isEditing ? 'Salvar' : 'Adicionar'}
+              </button>
+            </div>
           </div>
         </form>
       </div>
@@ -278,7 +328,6 @@ function slugify(s: string): string {
 }
 
 function defaultPhotoSet(): string[] {
-  // Galeria neutra elegante caso o usuário não cole nenhuma URL
   return [
     'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=900&q=80&auto=format&fit=crop',
     'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=900&q=80&auto=format&fit=crop',

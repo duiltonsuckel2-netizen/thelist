@@ -7,9 +7,10 @@ interface Props {
   place: Place
   visited: boolean
   onToggleVisited: (id: string) => void
+  onEdit: (place: Place) => void
 }
 
-export function PlaceCard({ place, visited, onToggleVisited }: Props) {
+export function PlaceCard({ place, visited, onToggleVisited, onEdit }: Props) {
   const [open, setOpen] = useState(false)
   const category = CATEGORY_BY_ID[place.category]
 
@@ -97,16 +98,7 @@ export function PlaceCard({ place, visited, onToggleVisited }: Props) {
               </div>
             )}
 
-            {place.instagram && (
-              <a
-                href={`https://instagram.com/${place.instagram.replace('@', '')}`}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-2 text-xs tracking-wide text-gold-400 hover:text-gold-300 transition"
-              >
-                <span>◐</span> {place.instagram}
-              </a>
-            )}
+            <ExternalLinks place={place} />
 
             {place.cuisines.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
@@ -138,10 +130,58 @@ export function PlaceCard({ place, visited, onToggleVisited }: Props) {
                 ))}
               </div>
             )}
+
+            <div className="pt-2 flex justify-end">
+              <button
+                type="button"
+                onClick={() => onEdit(place)}
+                className="text-[10px] tracking-widest2 uppercase text-sand-400 hover:text-gold-400 transition"
+              >
+                ✎ Editar lugar
+              </button>
+            </div>
           </div>
         </div>
       </div>
     </article>
+  )
+}
+
+/**
+ * Links externos do card: Instagram (handle direto se existir, ou busca pelo
+ * nome se faltar) + Google Maps (sempre presente — busca pelo nome + endereço).
+ */
+function ExternalLinks({ place }: { place: Place }) {
+  const igHref = place.instagram
+    ? `https://instagram.com/${place.instagram.replace('@', '')}`
+    : `https://www.google.com/search?q=${encodeURIComponent(`${place.name} Florianópolis instagram`)}`
+
+  const igLabel = place.instagram ?? 'Buscar no Instagram'
+
+  const mapsQuery = encodeURIComponent(
+    [place.name, place.address, 'Florianópolis'].filter(Boolean).join(' '),
+  )
+  const mapsHref = `https://www.google.com/maps/search/?api=1&query=${mapsQuery}`
+
+  return (
+    <div className="flex flex-wrap gap-x-5 gap-y-2">
+      <a
+        href={igHref}
+        target="_blank"
+        rel="noreferrer"
+        className="inline-flex items-center gap-2 text-xs tracking-wide text-gold-400 hover:text-gold-300 transition"
+      >
+        <span>◐</span> {igLabel}
+      </a>
+      <a
+        href={mapsHref}
+        target="_blank"
+        rel="noreferrer"
+        className="inline-flex items-center gap-2 text-xs tracking-wide text-gold-400 hover:text-gold-300 transition"
+      >
+        <span>◎</span> Google Maps
+      </a>
+    </div>
   )
 }
 

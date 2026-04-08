@@ -3,7 +3,7 @@ import { Header } from './components/Header'
 import { Filters } from './components/Filters'
 import { PlaceCard } from './components/PlaceCard'
 import { FAB } from './components/FAB'
-import { AddPlaceModal } from './components/AddPlaceModal'
+import { PlaceModal } from './components/PlaceModal'
 import { useLocalStorage } from './hooks/useLocalStorage'
 import { INITIAL_PLACES } from './data/initialPlaces'
 import { parsePlacesArray } from './data/validate'
@@ -36,6 +36,7 @@ export default function App() {
   const [category, setCategory] = useState<CategoryFilter>('todos')
   const [cuisine, setCuisine] = useState<CuisineFilter>('todas')
   const [modalOpen, setModalOpen] = useState(false)
+  const [editingPlace, setEditingPlace] = useState<Place | null>(null)
 
   const visitedSet = useMemo(() => new Set(visitedIds), [visitedIds])
 
@@ -47,7 +48,34 @@ export default function App() {
   const toggleVisited = (id: string) =>
     setVisitedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
 
-  const addPlace = (place: Place) => setPlaces((prev) => [place, ...prev])
+  const upsertPlace = (place: Place) =>
+    setPlaces((prev) => {
+      const idx = prev.findIndex((p) => p.id === place.id)
+      if (idx === -1) return [place, ...prev]
+      const next = [...prev]
+      next[idx] = place
+      return next
+    })
+
+  const deletePlace = (id: string) => {
+    setPlaces((prev) => prev.filter((p) => p.id !== id))
+    setVisitedIds((prev) => prev.filter((x) => x !== id))
+  }
+
+  const openAdd = () => {
+    setEditingPlace(null)
+    setModalOpen(true)
+  }
+
+  const openEdit = (place: Place) => {
+    setEditingPlace(place)
+    setModalOpen(true)
+  }
+
+  const closeModal = () => {
+    setModalOpen(false)
+    setEditingPlace(null)
+  }
 
   const totalVisited = places.reduce((acc, p) => (visitedSet.has(p.id) ? acc + 1 : acc), 0)
 
@@ -84,6 +112,7 @@ export default function App() {
                 place={place}
                 visited={visitedSet.has(place.id)}
                 onToggleVisited={toggleVisited}
+                onEdit={openEdit}
               />
             ))
           )}
@@ -92,11 +121,13 @@ export default function App() {
         <Footer count={filtered.length} />
       </div>
 
-      <FAB onClick={() => setModalOpen(true)} />
-      <AddPlaceModal
+      <FAB onClick={openAdd} />
+      <PlaceModal
         open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        onSubmit={addPlace}
+        onClose={closeModal}
+        onSubmit={upsertPlace}
+        onDelete={deletePlace}
+        editing={editingPlace}
       />
     </div>
   )
